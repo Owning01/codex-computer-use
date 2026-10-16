@@ -1,5 +1,5 @@
 # Especificación Técnica: OpenAI Codex Computer-Use & Browser-Use Architecture
-**Fuente:** Ingeniería inversa con REA (*Reverse-Engineer-Anything*) sobre `codex.exe` v0.163.0 (x86_64 PE32+).
+**Fuente:** Análisis profundo de ingeniería inversa y reconstrucción arquitectónica sobre `codex.exe` v0.163.0 (x86_64 PE32+).
 
 ---
 
