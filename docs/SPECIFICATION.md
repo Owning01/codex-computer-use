@@ -51,8 +51,16 @@ pub struct ComputerUseMacosRequirements {
 
 ```rust
 pub struct BrowserUseRequirements {
+    pub reset_type: Option<ResetType>,
+    pub granted_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub downloads: bool,
+    pub uploads: bool,
     pub full_cdp_access: bool,
-    pub allow_webmcp: bool,
+    pub persistent_approval: bool,
+    pub access_approval_lifetime: Option<Duration>,
+    pub extension: Option<String>,                 // Extensión Chrome empaquetada para WebMCP
+    pub allow_webmcp: bool,                        // Puente WebMCP para herramientas en el navegador
     pub allow_history_access: bool,
     pub disable_auto_review: bool,
     pub allow_global_persistent_approval: bool,
@@ -103,17 +111,48 @@ Codex instruye a su modelo con las siguientes reglas explícitas para el uso de 
 
 ---
 
-## 3. Arquitectura de Aislamiento en Windows
+## 3. Arquitectura de Aislamiento en Windows & Protocolo IPC
 
 Codex incluye dos binarios satélites de seguridad en `codex-resources`:
 
-### 1. `codex-command-runner.exe`
-* **Desktop Win32 Aislado:** Llama a `OpenDesktopW` creando un escritorio virtual secundario en la estación de ventanas interactiva:
-  `Winsta0\CodexSandboxDesk\...`
+### 1. `codex-command-runner.exe` y Protocolo de Mensajería Binario (`FramedMessage`)
+La comunicación entre el proceso principal (`codex.exe`) y el ejecutor de sandbox se realiza por `stdio` mediante paquetes enmarcados tipados:
+
+```rust
+pub enum Message {
+    SpawnRequest(SpawnRequest),
+    SpawnReady(SpawnReady),
+    Stdin(StdinPayload),
+    Output(OutputPayload),
+    Resize(ResizePayload),
+    CloseStdin,
+    Exit(ExitPayload),
+    Terminate,
+    Error(ErrorPayload),
+}
+
+pub struct SpawnRequest {
+    pub command: String,
+    pub cwd: PathBuf,
+    pub env: HashMap<String, String>,
+    pub permission_profile: PermissionProfile,
+    pub workspace_roots: Vec<PathBuf>,
+    pub codex_home: PathBuf,
+    pub real_codex_home: PathBuf,
+    pub cap_sids: Vec<String>,                       // Windows Capability / AppContainer SIDs
+    pub network_proxy_restricting_sid: Option<String>,
+    pub timeout_ms: Option<u64>,
+    pub tty: bool,
+    pub stdin_open: bool,
+    pub private_desktop_name: String,               // Ej: "CodexSandboxDesk" en Winsta0
+}
+```
+
+* **Desktop Win32 Aislado:** Llama a `OpenDesktopW` / `CreateDesktopW` creando un escritorio virtual secundario en la estación de ventanas interactiva (`Winsta0\CodexSandboxDesk`).
 * **Tokens Restringidos:**
   * Obtiene el token del proceso con `OpenProcessToken`.
   * Genera un token restringido con privilegios mínimos mediante `CreateRestrictedToken`.
-  * Asigna listas de control de acceso por defecto con `SetTokenInformation(TokenDefaultDacl)`.
+  * Asigna listas de control de acceso por defecto con `SetTokenInformation(TokenDefaultDacl)` y `SetSecurityInfo`.
   * Lanza la aplicación automatizada con `CreateProcessAsUserW`.
 
 ### 2. `codex-windows-sandbox-setup.exe`
@@ -126,7 +165,32 @@ Codex incluye dos binarios satélites de seguridad en `codex-resources`:
 
 ---
 
-## 4. Banderas de Características (*Feature Flags*)
+## 4. Arquitectura del Motor Code Mode (`codex-code-mode-host.exe`)
+
+El binario de 74.9 MB aloja un motor V8 integrado (`v8-150.4.0`) en Rust para resolver el cuello de botella de latencia y costo de tokens en los agentes:
+
+* **In-Process Tool Chaining:** El modelo de IA genera código JavaScript/TypeScript en lugar de llamadas a herramientas secuenciales en JSON.
+* **Aislamiento en V8 Isolate:** El script se ejecuta dentro de un contexto aislado con acceso a:
+  * `invoke_tool(tool_name, arguments)`: Invoca herramientas del arnés de forma asíncrona dentro del mismo bucle de eventos.
+  * `load(key)` y `store(key, value)`: Memoria persistente de la celda de ejecución.
+  * `notify(text)` y `generatedImage(...)`: Retroalimentación en tiempo real.
+* **Control de Red (`NetworkPolicy`):** Filtra el tráfico saliente desde el script para impedir exfiltración de credenciales.
+
+---
+
+## 5. Arquitectura de Control por Voz en Tiempo Real (`codex-voice-host.exe`)
+
+El binario de 9.0 MB gestiona la interacción por voz en tiempo real con latencia ultrabaja para asistir o comandar las acciones de Computer-Use:
+
+* **Pipeline Multimedia GStreamer:** Utiliza `gstapp`, `gstaudio`, `gstreamer-1.0` y `opusdec`.
+* **Transporte WebRTC con Audio OPUS:**
+  * Captura de micrófono (`voice_capture_processing`) a formato `F32LE interleaved`.
+  * Codificación y decodificación OPUS con FEC (*Forward Error Correction*).
+  * Buffer dinámico de fluctuación (*rtpjitterbuffer*) y supresión de eco (*voice echo reference*).
+
+---
+
+## 6. Banderas de Características (*Feature Flags*)
 
 Las siguientes banderas controlan el comportamiento de Computer-Use en `~/.codex/config.toml`:
 
