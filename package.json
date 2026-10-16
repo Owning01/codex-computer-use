@@ -1,0 +1,27 @@
+{
+  "name": "codex-computer-use",
+  "version": "1.0.0",
+  "description": "Universal Computer-Use & Browser-Use Engine reverse-engineered from OpenAI Codex Guardian v2 architecture",
+  "main": "scripts/codex_cua_harness.js",
+  "type": "module",
+  "bin": {
+    "codex-cua": "scripts/codex_cua_harness.js",
+    "codex-mcp": "scripts/codex_mcp_server.js"
+  },
+  "scripts": {
+    "start": "node scripts/codex_mcp_server.js",
+    "cua": "node scripts/codex_cua_harness.js",
+    "test": "node scripts/test_cua.js"
+  },
+  "keywords": [
+    "codex",
+    "computer-use",
+    "browser-use",
+    "mcp",
+    "automation",
+    "cdp",
+    "win32-sandbox"
+  ],
+  "author": "Antigravity REA Engine",
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,4 @@
+node_modules/
+temp_desktop_*
+*.log
+.DS_Store

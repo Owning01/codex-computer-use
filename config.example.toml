@@ -1,0 +1,65 @@
+# Configuración de OpenAI Codex con soporte completo de Computer-Use & Browser-Use
+# Ubicación canónica: ~/.codex/config.toml
+
+model = "o3"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[features]
+in_app_local_automation = true
+in_app_browser = true
+browser_use_full_cdp_access = true
+browser_annotation_api = true
+prevent_idle_sleep = true
+multi_agent = true
+skill_mcp_dependency_install = true
+tool_suggest = true
+
+[computer_use]
+allow_locked_computer_use = false
+allow_persistent_approval = true
+default_app_access = "allow"
+
+[computer_use.windows]
+# Application User Model IDs permitidos
+aumids = [
+    "Microsoft.WindowsTerminal_8wekyb3d8bbwe!App",
+    "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App"
+]
+
+# Ejecutables validados por firma de fabricante Authenticode
+[[computer_use.windows.exes]]
+publisher_name = "Google LLC"
+product_name = "Google Chrome"
+binary_name = "chrome.exe"
+
+[[computer_use.windows.exes]]
+publisher_name = "Microsoft Corporation"
+product_name = "Microsoft Edge"
+binary_name = "msedge.exe"
+
+[computer_use.macos]
+bundle_ids = [
+    "com.google.Chrome",
+    "com.apple.Safari"
+]
+
+[browser_use]
+full_cdp_access = true
+allow_webmcp = true
+allow_history_access = true
+disable_auto_review = false
+allow_global_persistent_approval = true
+default_origin_policy = "allow"
+
+[[browser_use.origins]]
+pattern = "https://github.com/*"
+full_cdp = true
+allow_downloads = true
+allow_uploads = true
+
+[[browser_use.origins]]
+pattern = "https://mail.google.com/*"
+full_cdp = true
+allow_downloads = true
+allow_uploads = true
