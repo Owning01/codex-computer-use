@@ -8,7 +8,6 @@
 [![Protocol](https://img.shields.io/badge/MCP-2024--11--05-blueviolet?style=for-the-badge)](https://modelcontextprotocol.io/)
 [![Dependencies](https://img.shields.io/badge/Dependencies-0%20(Pure%20Native)-success?style=for-the-badge)](https://nodejs.org/)
 [![OS](https://img.shields.io/badge/Platform-Windows%20%7C%20Cross--Platform-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://microsoft.com)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](LICENSE)
 
 *Say goodbye to coordinate hallucination, frozen file picker dialogs, and broken agent loops.*
 
@@ -250,9 +249,3 @@ The engine adheres to OpenAI Codex's Guardian v2 access control model defined in
 - **Origin Scoping:** Confines automated browser actions to explicitly allowed domain patterns.
 - **Upload / Download Gating:** Granular permission flags to protect sensitive enterprise environments.
 
----
-
-## 📄 License
-
-Licensed under the [Apache License, Version 2.0](LICENSE).
-Built for open-source AI agent research and autonomous computer automation.

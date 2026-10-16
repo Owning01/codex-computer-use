@@ -22,6 +22,5 @@
     "cdp",
     "win32-sandbox"
   ],
-  "author": "Antigravity CUA Team",
-  "license": "Apache-2.0"
+  "author": "Antigravity CUA Team"
 }
