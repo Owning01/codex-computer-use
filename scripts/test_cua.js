@@ -82,6 +82,46 @@ async function runTests() {
   });
   console.log('cua_status Result:', statusRes.result?.content?.[0]?.text);
 
+  // Test cua_clipboard_set and cua_clipboard_get
+  console.log('\n=== [4] Testing Clipboard MCP Tools ===');
+  const clipSetRes = await sendRpc({
+    jsonrpc: '2.0',
+    id: 4,
+    method: 'tools/call',
+    params: { name: 'cua_clipboard_set', arguments: { text: 'Codex_CUA_Test_Payload_2026' } }
+  });
+  console.log('cua_clipboard_set Result:', clipSetRes.result?.content?.[0]?.text);
+
+  const clipGetRes = await sendRpc({
+    jsonrpc: '2.0',
+    id: 5,
+    method: 'tools/call',
+    params: { name: 'cua_clipboard_get', arguments: {} }
+  });
+  console.log('cua_clipboard_get Result:', clipGetRes.result?.content?.[0]?.text);
+  if (clipGetRes.result?.content?.[0]?.text !== 'Codex_CUA_Test_Payload_2026') {
+    throw new Error('Clipboard roundtrip verification failed');
+  }
+  console.log('✓ Clipboard roundtrip passed.');
+
+  // Test cua_search_commands batch tool
+  console.log('\n=== [5] Testing Codex SearchCommands Batch Protocol ===');
+  const searchCmdRes = await sendRpc({
+    jsonrpc: '2.0',
+    id: 6,
+    method: 'tools/call',
+    params: {
+      name: 'cua_search_commands',
+      arguments: {
+        commands: {
+          time: [{ utc_offset: '-03:00' }]
+        }
+      }
+    }
+  });
+  console.log('cua_search_commands Result:', searchCmdRes.result?.content?.[0]?.text);
+  console.log('✓ SearchCommands batch execution passed.');
+
   mcpProc.kill();
   console.log('\n✓ All MCP Server communication tests passed successfully!');
 }

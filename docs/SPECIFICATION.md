@@ -70,17 +70,36 @@ pub struct OriginRule {
 
 ### C. Comandos y Acciones de CUA (`SearchCommands` / `CuaAction`)
 
+Estructura de 11 elementos extraída del crate `codex_api::search`:
+
 ```rust
 pub struct SearchCommands {
-    pub search_query: Option<SearchQuery>,
-    pub open: Option<OpenOperation>,          // { lineno / url }
-    pub click: Option<ClickOperation>,        // { id: ref_id }
-    pub find: Option<FindOperation>,          // { pattern, ref_id }
-    pub screenshot: Option<ScreenshotOperation>, // { pageno, max_results, caption }
-    pub time: Option<TimeOperation>,
-    pub response_length: Option<usize>,
+    pub search_query: Option<Vec<SearchQuery>>,         // { q, recency, domains }
+    pub image_query: Option<Vec<ImageQuery>>,           // { q }
+    pub open: Option<Vec<OpenOperation>>,               // { ref_id, lineno }
+    pub click: Option<Vec<ClickOperation>>,             // { ref_id, id }
+    pub find: Option<Vec<FindOperation>>,               // { ref_id, pattern }
+    pub screenshot: Option<Vec<ScreenshotOperation>>,   // { ref_id, pageno }
+    pub finance: Option<Vec<FinanceOperation>>,         // { ticker, type, market }
+    pub weather: Option<Vec<WeatherOperation>>,         // { location, start, duration }
+    pub sports: Option<Vec<SportsOperation>>,           // { fn, league, team, opponent, date_from, date_to, num_games, locale }
+    pub time: Option<Vec<TimeOperation>>,               // { utc_offset }
+    pub response_length: Option<String>,                // "short" | "medium" | "long"
 }
 ```
+
+### D. Directivas de Decisión del Agente (System Prompt de CUA extraído)
+
+Codex instruye a su modelo con las siguientes reglas explícitas para el uso de la computadora y la web:
+
+1. **Agrupación de Comandos (*Batching*):**
+   * El modelo debe agrupar múltiples comandos en una sola llamada para máxima velocidad:
+     `{"search_query": [{"q": "bitcoin news"}], "finance":[{"ticker":"BTC","type":"crypto","market":""}], "find": [{"ref_id": "turn0search0", "pattern": "Annie Case"}]}`
+2. **Citas y Rastreo de Referencias:**
+   * Las referencias de navegación se rastrean con el formato `turn{T}search{S}` y `turn{T}fetch{F}` (ejemplo: `turn0fetch3`).
+   * No se exponen estos IDs al usuario final; solo se citan mediante Markdown links limpios.
+3. **Frontera de Decisión Obligatoria (`<situations_where_you_must_browse_the_internet>`):**
+   * El agente debe navegar obligatoriamente si hay un >10% de probabilidad de que la información haya cambiado temporalmente (precios, versiones de librerías, normas, noticias, directivos de empresas).
 
 ---
 

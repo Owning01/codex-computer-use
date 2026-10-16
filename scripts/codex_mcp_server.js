@@ -163,6 +163,98 @@ const TOOLS = [
       },
       required: ['command_line']
     }
+  },
+  {
+    name: 'cua_desktop_mouse_move',
+    description: 'Moves the mouse cursor to specific coordinates (x, y) without clicking (useful for hover states and tooltips)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        x: { type: 'number', description: 'Screen X coordinate' },
+        y: { type: 'number', description: 'Screen Y coordinate' }
+      },
+      required: ['x', 'y']
+    }
+  },
+  {
+    name: 'cua_desktop_scroll',
+    description: 'Scrolls the mouse wheel vertically (positive for up, negative for down)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        delta_y: { type: 'number', description: 'Scroll amount in wheel clicks (e.g., -120 for scroll down, 120 for scroll up)' },
+        x: { type: 'number', description: 'Optional X coordinate' },
+        y: { type: 'number', description: 'Optional Y coordinate' }
+      },
+      required: ['delta_y']
+    }
+  },
+  {
+    name: 'cua_desktop_drag',
+    description: 'Performs a mouse drag from start coordinates to end coordinates',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        start_x: { type: 'number', description: 'Start X coordinate' },
+        start_y: { type: 'number', description: 'Start Y coordinate' },
+        end_x: { type: 'number', description: 'End X coordinate' },
+        end_y: { type: 'number', description: 'End Y coordinate' },
+        steps: { type: 'number', default: 10, description: 'Number of interpolation steps' }
+      },
+      required: ['start_x', 'start_y', 'end_x', 'end_y']
+    }
+  },
+  {
+    name: 'cua_clipboard_get',
+    description: 'Reads text from system clipboard',
+    inputSchema: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  {
+    name: 'cua_clipboard_set',
+    description: 'Copies text into system clipboard',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Text to copy' }
+      },
+      required: ['text']
+    }
+  },
+  {
+    name: 'cua_window_list',
+    description: 'Lists all open top-level application windows with IDs and titles',
+    inputSchema: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  {
+    name: 'cua_window_focus',
+    description: 'Brings an application window to foreground by title or process name',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Window title or process name query' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'cua_search_commands',
+    description: 'Executes unified Codex SearchCommands (open, click, find, screenshot, time, response_length) in a single batch call',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        commands: {
+          type: 'object',
+          description: 'Codex SearchCommands object with open, click, find, screenshot, etc.'
+        }
+      },
+      required: ['commands']
+    }
   }
 ];
 
@@ -335,6 +427,46 @@ async function handleToolCall(name, args) {
     case 'cua_exec_sandboxed': {
       const res = await harness.execInDesktopSandbox(args.command_line);
       return { content: [{ type: 'text', text: res }] };
+    }
+
+    case 'cua_desktop_mouse_move': {
+      const res = await harness.desktopMouseMove(args.x, args.y);
+      return { content: [{ type: 'text', text: res }] };
+    }
+
+    case 'cua_desktop_scroll': {
+      const res = await harness.desktopScroll(args.delta_y, args.x, args.y);
+      return { content: [{ type: 'text', text: res }] };
+    }
+
+    case 'cua_desktop_drag': {
+      const res = await harness.desktopDrag(args.start_x, args.start_y, args.end_x, args.end_y, args.steps);
+      return { content: [{ type: 'text', text: res }] };
+    }
+
+    case 'cua_clipboard_get': {
+      const text = await harness.getClipboard();
+      return { content: [{ type: 'text', text: text || '' }] };
+    }
+
+    case 'cua_clipboard_set': {
+      const res = await harness.setClipboard(args.text);
+      return { content: [{ type: 'text', text: res }] };
+    }
+
+    case 'cua_window_list': {
+      const list = await harness.listWindows();
+      return { content: [{ type: 'text', text: JSON.stringify(list, null, 2) }] };
+    }
+
+    case 'cua_window_focus': {
+      const res = await harness.focusWindow(args.query);
+      return { content: [{ type: 'text', text: res }] };
+    }
+
+    case 'cua_search_commands': {
+      const res = await harness.executeSearchCommands(args.commands);
+      return { content: [{ type: 'text', text: JSON.stringify(res, null, 2) }] };
     }
 
     default:

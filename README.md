@@ -142,6 +142,14 @@ class CodexCUAClient:
 | `cua_browser_upload` | Sube archivos por CDP (Google Drive, MercadoLibre) | `ref_id`, `file_paths` |
 | `cua_browser_eval` | Ejecuta JavaScript en la página y retorna el valor | `expression` |
 | `cua_exec_sandboxed` | Lanza un proceso en `Winsta0\CodexSandboxDesk` | `command_line` |
+| `cua_desktop_mouse_move` | Mueve el cursor a `(x, y)` sin hacer clic (hover / tooltips) | `x`, `y` |
+| `cua_desktop_scroll` | Rueda de scroll del ratón vertical | `delta_y`, `x`, `y` |
+| `cua_desktop_drag` | Arrastrar y soltar (*drag & drop*) interpolado | `start_x`, `start_y`, `end_x`, `end_y`, `steps` |
+| `cua_clipboard_get` | Lee el contenido de texto del portapapeles del sistema | Ninguno |
+| `cua_clipboard_set` | Escribe texto en el portapapeles del sistema | `text` |
+| `cua_window_list` | Lista las ventanas abiertas y sus identificadores | Ninguno |
+| `cua_window_focus` | Enfoca y restaura una ventana por título o proceso | `query` |
+| `cua_search_commands` | Ejecuta el lote unificado de `SearchCommands` de Codex | `commands` |
 
 ---
 

@@ -231,6 +231,145 @@ export class CodexCuaHarness {
     return this.runPowerShell(psScript);
   }
 
+  /**
+   * Moves cursor to (x, y) without clicking
+   */
+  async desktopMouseMove(x, y) {
+    if (!this.isWindows) throw new Error('desktopMouseMove Windows only');
+    const psScript = `
+      $sig = @'
+      [DllImport("user32.dll")]
+      public static extern bool SetCursorPos(int X, int Y);
+'@
+      $type = Add-Type -MemberDefinition $sig -Name "Win32MouseMove" -Namespace "CodexCUA" -PassThru
+      $type::SetCursorPos(${Math.round(x)}, ${Math.round(y)}) | Out-Null
+      Write-Output "MOUSE_MOVE_OK"
+    `;
+    return this.runPowerShell(psScript);
+  }
+
+  /**
+   * Scrolls the mouse wheel up or down at optional position
+   */
+  async desktopScroll(deltaY, x = null, y = null) {
+    if (!this.isWindows) throw new Error('desktopScroll Windows only');
+    const psScript = `
+      $sig = @'
+      [DllImport("user32.dll")]
+      public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, uint dwExtraInfo);
+      [DllImport("user32.dll")]
+      public static extern bool SetCursorPos(int X, int Y);
+'@
+      $type = Add-Type -MemberDefinition $sig -Name "Win32Scroll" -Namespace "CodexCUA" -PassThru
+      ${x !== null && y !== null ? `$type::SetCursorPos(${Math.round(x)}, ${Math.round(y)}) | Out-Null` : ''}
+      $MOUSEEVENTF_WHEEL = 0x0800
+      $type::mouse_event($MOUSEEVENTF_WHEEL, 0, 0, ${Math.round(deltaY)}, 0)
+      Write-Output "SCROLL_OK"
+    `;
+    return this.runPowerShell(psScript);
+  }
+
+  /**
+   * Drags from (startX, startY) to (endX, endY) with smooth interpolation
+   */
+  async desktopDrag(startX, startY, endX, endY, steps = 10) {
+    if (!this.isWindows) throw new Error('desktopDrag Windows only');
+    const psScript = `
+      $sig = @'
+      [DllImport("user32.dll")]
+      public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
+      [DllImport("user32.dll")]
+      public static extern bool SetCursorPos(int X, int Y);
+'@
+      $type = Add-Type -MemberDefinition $sig -Name "Win32Drag" -Namespace "CodexCUA" -PassThru
+      $MOUSEEVENTF_LEFTDOWN = 0x02
+      $MOUSEEVENTF_LEFTUP   = 0x04
+
+      $type::SetCursorPos(${Math.round(startX)}, ${Math.round(startY)}) | Out-Null
+      Start-Sleep -Milliseconds 60
+      $type::mouse_event($MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+      Start-Sleep -Milliseconds 40
+
+      for ($i = 1; $i -le ${steps}; $i++) {
+        $curX = [int](${startX} + ((${endX} - ${startX}) * $i / ${steps}))
+        $curY = [int](${startY} + ((${endY} - ${startY}) * $i / ${steps}))
+        $type::SetCursorPos($curX, $curY) | Out-Null
+        Start-Sleep -Milliseconds 25
+      }
+
+      $type::mouse_event($MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+      Write-Output "DRAG_OK"
+    `;
+    return this.runPowerShell(psScript);
+  }
+
+  /**
+   * Reads current text in system clipboard
+   */
+  async getClipboard() {
+    if (!this.isWindows) throw new Error('getClipboard Windows only');
+    const psScript = `
+      Add-Type -AssemblyName System.Windows.Forms
+      [System.Windows.Forms.Clipboard]::GetText()
+    `;
+    return this.runPowerShell(psScript);
+  }
+
+  /**
+   * Sets text in system clipboard
+   */
+  async setClipboard(text) {
+    if (!this.isWindows) throw new Error('setClipboard Windows only');
+    const escaped = text.replace(/'/g, "''");
+    const psScript = `
+      Add-Type -AssemblyName System.Windows.Forms
+      [System.Windows.Forms.Clipboard]::SetText('${escaped}')
+      Write-Output "CLIPBOARD_SET_OK"
+    `;
+    return this.runPowerShell(psScript);
+  }
+
+  /**
+   * Lists visible top-level windows
+   */
+  async listWindows() {
+    if (!this.isWindows) throw new Error('listWindows Windows only');
+    const psScript = `
+      Get-Process | Where-Object { $_.MainWindowTitle } | Select-Object Id, ProcessName, MainWindowTitle | ConvertTo-Json -Compress
+    `;
+    const out = await this.runPowerShell(psScript);
+    try {
+      return JSON.parse(out);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Brings target window to foreground
+   */
+  async focusWindow(titleQuery) {
+    if (!this.isWindows) throw new Error('focusWindow Windows only');
+    const psScript = `
+      $sig = @'
+      [DllImport("user32.dll")]
+      public static extern bool SetForegroundWindow(IntPtr hWnd);
+      [DllImport("user32.dll")]
+      public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+'@
+      $type = Add-Type -MemberDefinition $sig -Name "Win32Focus" -Namespace "CodexCUA" -PassThru
+      $p = Get-Process | Where-Object { $_.MainWindowTitle -like "*${titleQuery}*" -or $_.ProcessName -like "*${titleQuery}*" } | Select-Object -First 1
+      if ($p -and $p.MainWindowHandle -ne [IntPtr]::Zero) {
+        $type::ShowWindow($p.MainWindowHandle, 9) | Out-Null # SW_RESTORE
+        $type::SetForegroundWindow($p.MainWindowHandle) | Out-Null
+        Write-Output "FOCUSED:$($p.ProcessName) - $($p.MainWindowTitle)"
+      } else {
+        Write-Output "WINDOW_NOT_FOUND"
+      }
+    `;
+    return this.runPowerShell(psScript);
+  }
+
   // --- Chrome DevTools Protocol (CDP) & Browser-Use Engine ---
 
   /**
@@ -486,6 +625,59 @@ export class CodexCuaHarness {
       return { success: true, uploaded: paths };
     }
     throw new Error('Could not resolve objectId for file input');
+  }
+
+  // --- Codex SearchCommands & Unified web.run Protocol ---
+  /**
+   * Executes unified Codex SearchCommands structure:
+   * { search_query, image_query, open, click, find, screenshot, time, response_length }
+   */
+  async executeSearchCommands(commands = {}) {
+    const results = {};
+
+    if (commands.time) {
+      const offset = commands.time[0]?.utc_offset || '+00:00';
+      results.time = { current: new Date().toISOString(), utc_offset: offset };
+    }
+
+    if (commands.open) {
+      results.open = [];
+      for (const op of commands.open) {
+        if (op.ref_id && (op.ref_id.startsWith('http://') || op.ref_id.startsWith('https://'))) {
+          const navRes = await this.browserNavigate(op.ref_id);
+          results.open.push({ target: op.ref_id, status: 'navigated', details: navRes });
+        }
+      }
+    }
+
+    if (commands.find) {
+      results.find = [];
+      const annotations = await this.browserAnnotate();
+      for (const f of commands.find) {
+        const matches = annotations.filter(a =>
+          (a.text && a.text.toLowerCase().includes(f.pattern.toLowerCase())) ||
+          (a.ariaLabel && a.ariaLabel.toLowerCase().includes(f.pattern.toLowerCase())) ||
+          (a.placeholder && a.placeholder.toLowerCase().includes(f.pattern.toLowerCase()))
+        );
+        results.find.push({ pattern: f.pattern, matches });
+      }
+    }
+
+    if (commands.click) {
+      results.click = [];
+      for (const c of commands.click) {
+        if (c.id !== undefined) {
+          const clickRes = await this.browserClickRef(c.id);
+          results.click.push({ id: c.id, result: clickRes });
+        }
+      }
+    }
+
+    if (commands.screenshot) {
+      results.screenshot = await this.browserScreenshot();
+    }
+
+    return results;
   }
 
   // --- Sandboxed Windows Desktop Launcher ---
